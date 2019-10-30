@@ -44,7 +44,7 @@ def gaussian(im):
     return smooth_image
 
 
-def gradient(im):
+def gradient_calc(im):
     '''
     Compute the gradient magnitude and gradient angle
     of Input Image using the Sobel operator
@@ -64,6 +64,10 @@ def gradient(im):
     # Calculate the height and width of image
     h, w = im.shape
 
+    # Define the matrix for storing the Horizontal and Vertical Gradient Values
+    G_x = np.zeros(im.shape, dtype=np.float64)
+    G_y = np.zeros(im.shape, dtype=np.float64)
+
     # Define the matrix for storing the gradient magnitude values
     gra_mag = np.zeros(im.shape, dtype=np.float64)
 
@@ -74,20 +78,23 @@ def gradient(im):
         for j in range(1, w - 1):
 
             # Calculate the gradient in x direction
-            temp_gx = np.sum(gx * im[i - 1:i + 2, j - 1:j + 2])
+            G_x[i, j] = np.sum(gx * im[i - 1:i + 2, j - 1:j + 2]) / 4
 
             # Calculate the gradient in y direction
-            temp_gy = np.sum(gy * im[i - 1:i + 2, j - 1:j + 2])
+            G_y[i, j] = np.sum(gy * im[i - 1:i + 2, j - 1:j + 2]) / 4
 
             # Calculate the gradient magnitude
-            gra_mag[i, j] = np.sqrt(np.sum([temp_gx ** 2, temp_gy ** 2]))
+            gra_mag[i, j] = np.sqrt(np.sum([G_x[i, j] ** 2, G_y[i, j] ** 2]))  # /np.sqrt(2)
 
             # Calculate the gradient angle
-            if temp_gx == 0:
+            if G_x[i, j] == 0:
                 gra_angle[i, j] = 0.0
             else:
-                gra_angle[i, j] = np.degrees(np.arctan(temp_gy / temp_gx))
+                gra_angle[i, j] = np.degrees(np.arctan(G_y[i, j] / G_x[i, j]))
 
+    # cv2.imwrite('G_x_4.bmp',G_x)
+    # cv2.imwrite('G_y_4.bmp',G_y)
+    # cv2.imwrite('G_mag.bmp',gra_mag)
     return (gra_mag, gra_angle)
 
 
@@ -108,8 +115,6 @@ def NMS(magnitude, angle):
 
     # Initialize the output matrix
     N = np.zeros((h, w), dtype=np.float64)
-
-    print(h, w)
 
     for i in range(1, h - 1):
         for j in range(1, w - 1):
@@ -153,28 +158,71 @@ def NMS(magnitude, angle):
     return N, sector
 
 
+def doubleThresholding(N, angle, t1, t2):
+    # Calculate the height and width of NMS matrix
+    h, w = N.shape
+
+    # Initialize the Binary Edge Map
+    E = np.zeros((h, w))
+
+    for i in range(1, h - 1):
+        for j in range(1, w - 1):
+
+            # If Gradient value is less than Threshold 1, assign it to background.
+            if N[i, j] < t1:
+                E[i, j] = 0
+
+            # If Gradient value is greater than Threshold 2, assign it to Edge.
+            elif N[i, j] > t2:
+                E[i, j] = 255
+
+            # Gradient value is between Threshold 1 and Threshold 2,
+            # check gradient values and angle of 8 neighbours.
+            elif t1 <= N[i, j] <= t2:
+                if ((N[i - 1, j - 1] > t2 and abs(angle[i - 1, j - 1] - angle[i, j] <= 45)) or  # upper left
+                        (N[i - 1, j] > t2 and abs(angle[i - 1, j] - angle[i, j] <= 45)) or  # upper middle
+                        (N[i - 1, j + 1] > t2 and abs(angle[i - 1, j + 1] - angle[i, j] <= 45)) or  # upper right
+                        (N[i, j - 1] > t2 and abs(angle[i, j - 1] - angle[i, j] <= 45)) or  # left
+                        (N[i, j + 1] > t2 and abs(angle[i, j + 1] - angle[i, j] <= 45)) or  # right
+                        (N[i + 1, j - 1] > t2 and abs(angle[i + 1, j - 1] - angle[i, j] <= 45)) or  # lower left
+                        (N[i + 1, j] > t2 and abs(angle[i + 1, j] - angle[i, j] <= 45)) or  # lower middle
+                        (N[i + 1, j + 1] > t2 and abs(angle[i + 1, j + 1] - angle[i, j] <= 45))):  # lower right
+                    E[i, j] = 255
+                else:
+                    E[i, j] = 0
+    return E
+
+
 if __name__ == '__main__':
-    fname = 'Zebra-crossing-1.bmp'
+    fname = 'Houses-225.bmp'
 
     # Read the image in GRAYSCALE mode
     im = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
-
-    # Perform the smoothing operation
 
     print("Performing Gaussian Smoothing on {}".format(fname))
     smooth_image = gaussian(im)
     print("Gaussian Smoothing completed")
 
+    print("Saving Smoothed Image")
+    cv2.imwrite('Smooth_{}'.format(fname), smooth_image)
+
     print("Performing Gradient Calculation on {}".format(fname))
-    gradient, angle = gradient(smooth_image)
+    gradient, angle = gradient_calc(smooth_image)
     print("Gradient Calculation completed")
+
+    print("Saving Gradient Image")
+    cv2.imwrite('Gradient_{}'.format(fname), gradient)
 
     print("Performing Non-Maximum Suppression on {}".format(fname))
     NMS_gradient, sector = NMS(gradient, angle)
     print("Non-Maximum Suppression completed")
 
-    cv2.imwrite("NMS_{}".format(fname), NMS_gradient)
-    print("Saved Image")
+    print("Saving NMS Image")
+    cv2.imwrite('NMS_{}'.format(fname), NMS_gradient)
 
-    # If we want to test the output of Gaussian Smoothed Image
-    # cv2.imwrite('Test_Smooth_{}'.format(fname),smooth_image)
+    print("Performing Double Thresholding on {}".format(fname))
+    Edge_map = doubleThresholding(gradient, angle, t1=100, t2=180)
+    print("Double Thresholding completed")
+
+    print("Saving EdgeMap")
+    cv2.imwrite('EdgeMap_{}'.format(fname), NMS_gradient)
