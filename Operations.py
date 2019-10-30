@@ -27,16 +27,14 @@ def gaussian(im):
     # Matrix for holding the smoothed image
     smooth_image = np.zeros(im.shape)
 
-    # Perform the convolution operation
-
-    # If we want to use padded image
+    # Perform the convolution operation on the padded Image
     for i in range(h):
         for j in range(w):
             # Multiply the mask matrix with 7*7 matrix and sum the output
             # Divide by output by 140 for normalization
             smooth_image[i, j] = np.sum(mask * im_padded[i:i + 7, j:j + 7]) // 140
 
-    # If we don't want to use padded image
+    # Perform the convolution operation on the Non-Padded Image
     '''for i in range(3,h-3):
         for j in range(3,w-3):
             # Multiply the mask matrix with 7*7 matrix and sum the output 
@@ -86,12 +84,9 @@ def gradient(im):
 
             # Calculate the gradient angle
             if temp_gx == 0:
-                gra_angle = 0.0
+                gra_angle[i, j] = 0.0
             else:
-                gra_angle = np.degrees(np.arctan(temp_gy / temp_gx))
-
-    # If we want to see the output of Gradient Operation
-    # cv2.imwrite("G_mag.png",G_mag)
+                gra_angle[i, j] = np.degrees(np.arctan(temp_gy / temp_gx))
 
     return (gra_mag, gra_angle)
 
@@ -102,7 +97,7 @@ def NMS(magnitude, angle):
     using angle matrix
     :param magnitude: Input Magnitude matrix
     :param angle: Corresponding Angle matrix
-    :return: Non-Maximum Suppressed Magnitude matrix
+    :return: Non-Maximum Suppressed Magnitude and Corresponding Sector matrices
     '''
 
     # Calculate height, width of the Magnitude Matrix
@@ -114,13 +109,14 @@ def NMS(magnitude, angle):
     # Initialize the output matrix
     N = np.zeros((h, w), dtype=np.float64)
 
-    for i in range(h):
-        for j in range(w):
+    print(h, w)
+
+    for i in range(1, h - 1):
+        for j in range(1, w - 1):
 
             # Test if angle is in sector 0
             if (337.5 <= angle[i, j] <= 360) or (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] < 202.5):
                 sector[i, j] = 0
-
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i, j - 1], magnitude[i, j + 1]):
                     N[i, j] = magnitude[i, j]
@@ -130,7 +126,6 @@ def NMS(magnitude, angle):
             # Test if angle is in sector 1
             elif (22.5 <= angle[i, j] < 67.5) or (202.5 <= angle[i, j] < 247.5):
                 sector[i, j] = 1
-
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j + 1], magnitude[i + 1, j - 1]):
                     N[i, j] = magnitude[i, j]
@@ -140,7 +135,6 @@ def NMS(magnitude, angle):
             # Test if angle is in sector 2
             elif (67.5 <= angle[i, j] < 112.5) or (247.5 <= angle[i, j] < 292.5):
                 sector[i, j] = 2
-
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j], magnitude[i + 1, j]):
                     N[i, j] = magnitude[i, j]
@@ -148,28 +142,39 @@ def NMS(magnitude, angle):
                     N[i, j] = 0.0
 
             # Test if angle is in sector 3
-            elif (112.5 <= angle < 157.7) or (292.5 <= angle[i, j] < 337.5):
+            elif (112.5 <= angle[i, j] < 157.7) or (292.5 <= angle[i, j] < 337.5):
                 sector[i, j] = 3
-
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j - 1], magnitude[i + 1, j + 1]):
                     N[i, j] = magnitude[i, j]
                 else:
                     N[i, j] = 0.0
 
-        return N
+    return N, sector
 
 
 if __name__ == '__main__':
     fname = 'Zebra-crossing-1.bmp'
-    imname = fname.split('.')[0]
 
     # Read the image in GRAYSCALE mode
     im = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
 
     # Perform the smoothing operation
+
+    print("Performing Gaussian Smoothing on {}".format(fname))
     smooth_image = gaussian(im)
+    print("Gaussian Smoothing completed")
+
+    print("Performing Gradient Calculation on {}".format(fname))
     gradient, angle = gradient(smooth_image)
+    print("Gradient Calculation completed")
+
+    print("Performing Non-Maximum Suppression on {}".format(fname))
+    NMS_gradient, sector = NMS(gradient, angle)
+    print("Non-Maximum Suppression completed")
+
+    cv2.imwrite("NMS_{}".format(fname), NMS_gradient)
+    print("Saved Image")
 
     # If we want to test the output of Gaussian Smoothed Image
-    # cv2.imwrite('Test_Smooth_{}.png'.format(imname),smooth_image)
+    # cv2.imwrite('Test_Smooth_{}'.format(fname),smooth_image)
