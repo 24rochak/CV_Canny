@@ -49,8 +49,7 @@ def gaussian(im):
 def gradient(im):
     '''
     Compute the gradient magnitude and gradient angle
-    of Input Image
-    using the Sobel operator.
+    of Input Image using the Sobel operator
     :param im: Input Image
     :return: (Gradient Magnitude, Gradient Angle)
     '''
@@ -97,8 +96,69 @@ def gradient(im):
     return (gra_mag, gra_angle)
 
 
-def NMS(magnitude,angle):
-    return -1
+def NMS(magnitude, angle):
+    '''
+    Performs Non-Maximum Suppression on given Magnitude matrix
+    using angle matrix
+    :param magnitude: Input Magnitude matrix
+    :param angle: Corresponding Angle matrix
+    :return: Non-Maximum Suppressed Magnitude matrix
+    '''
+
+    # Calculate height, width of the Magnitude Matrix
+    h, w = im.shape
+
+    # Initialize the sector matrix to store the sector values.
+    sector = np.zeros((h, w))
+
+    # Initialize the output matrix
+    N = np.zeros((h, w), dtype=np.float64)
+
+    for i in range(h):
+        for j in range(w):
+
+            # Test if angle is in sector 0
+            if (337.5 <= angle[i, j] <= 360) or (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] < 202.5):
+                sector[i, j] = 0
+
+                # Check if the magnitude value is maximum amongst corresponding neighbours
+                if magnitude[i, j] > max(magnitude[i, j - 1], magnitude[i, j + 1]):
+                    N[i, j] = magnitude[i, j]
+                else:
+                    N[i, j] = 0.0
+
+            # Test if angle is in sector 1
+            elif (22.5 <= angle[i, j] < 67.5) or (202.5 <= angle[i, j] < 247.5):
+                sector[i, j] = 1
+
+                # Check if the magnitude value is maximum amongst corresponding neighbours
+                if magnitude[i, j] > max(magnitude[i - 1, j + 1], magnitude[i + 1, j - 1]):
+                    N[i, j] = magnitude[i, j]
+                else:
+                    N[i, j] = 0.0
+
+            # Test if angle is in sector 2
+            elif (67.5 <= angle[i, j] < 112.5) or (247.5 <= angle[i, j] < 292.5):
+                sector[i, j] = 2
+
+                # Check if the magnitude value is maximum amongst corresponding neighbours
+                if magnitude[i, j] > max(magnitude[i - 1, j], magnitude[i + 1, j]):
+                    N[i, j] = magnitude[i, j]
+                else:
+                    N[i, j] = 0.0
+
+            # Test if angle is in sector 3
+            elif (112.5 <= angle < 157.7) or (292.5 <= angle[i, j] < 337.5):
+                sector[i, j] = 3
+
+                # Check if the magnitude value is maximum amongst corresponding neighbours
+                if magnitude[i, j] > max(magnitude[i - 1, j - 1], magnitude[i + 1, j + 1]):
+                    N[i, j] = magnitude[i, j]
+                else:
+                    N[i, j] = 0.0
+
+        return N
+
 
 if __name__ == '__main__':
     fname = 'Zebra-crossing-1.bmp'
