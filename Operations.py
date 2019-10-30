@@ -78,10 +78,10 @@ def gradient_calc(im):
         for j in range(1, w - 1):
 
             # Calculate the gradient in x direction
-            G_x[i, j] = np.sum(gx * im[i - 1:i + 2, j - 1:j + 2]) / 4
+            G_x[i, j] = np.sum(gx * im[i - 1:i + 2, j - 1:j + 2])
 
             # Calculate the gradient in y direction
-            G_y[i, j] = np.sum(gy * im[i - 1:i + 2, j - 1:j + 2]) / 4
+            G_y[i, j] = np.sum(gy * im[i - 1:i + 2, j - 1:j + 2])
 
             # Calculate the gradient magnitude
             gra_mag[i, j] = np.sqrt(np.sum([G_x[i, j] ** 2, G_y[i, j] ** 2]))  # /np.sqrt(2)
@@ -221,8 +221,8 @@ if __name__ == '__main__':
     cv2.imwrite('NMS_{}'.format(fname), NMS_gradient)
 
     print("Performing Double Thresholding on {}".format(fname))
-    Edge_map = doubleThresholding(gradient, angle, t1=100, t2=180)
+    Edge_map = doubleThresholding(gradient, angle, t1=100, t2=150)
     print("Double Thresholding completed")
 
     print("Saving EdgeMap")
-    cv2.imwrite('EdgeMap_{}'.format(fname), NMS_gradient)
+    cv2.imwrite('EdgeMap_{}'.format(fname),Edge_map)
