@@ -194,7 +194,7 @@ def doubleThresholding(N, angle, t1, t2):
 
 
 if __name__ == '__main__':
-    fname = 'Houses-225.bmp'
+    fname = 'Zebra-crossing-1.bmp'
 
     # Read the image in GRAYSCALE mode
     im = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
