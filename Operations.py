@@ -1,6 +1,8 @@
+import os
+
 import cv2
 import numpy as np
-import os
+
 
 def gaussian(im):
     '''
@@ -132,10 +134,10 @@ def NMS(magnitude, angle, normalized_gradient):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i, j - 1], magnitude[i, j + 1]):
                     N[i, j] = magnitude[i, j]
-                    Normalized_N[i,j] = normalized_gradient[i,j]
+                    Normalized_N[i, j] = normalized_gradient[i, j]
                 else:
                     N[i, j] = 0.0
-                    Normalized_N[i,j] = 0.0
+                    Normalized_N[i, j] = 0.0
 
             # Test if angle is in sector 1
             elif (22.5 <= angle[i, j] < 67.5) or (202.5 <= angle[i, j] < 247.5):
@@ -143,10 +145,10 @@ def NMS(magnitude, angle, normalized_gradient):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j + 1], magnitude[i + 1, j - 1]):
                     N[i, j] = magnitude[i, j]
-                    Normalized_N[i,j] = normalized_gradient[i, j]
+                    Normalized_N[i, j] = normalized_gradient[i, j]
                 else:
                     N[i, j] = 0.0
-                    Normalized_N[i,j] = 0.0
+                    Normalized_N[i, j] = 0.0
 
             # Test if angle is in sector 2
             elif (67.5 <= angle[i, j] < 112.5) or (247.5 <= angle[i, j] < 292.5):
@@ -154,10 +156,10 @@ def NMS(magnitude, angle, normalized_gradient):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j], magnitude[i + 1, j]):
                     N[i, j] = magnitude[i, j]
-                    Normalized_N[i,j] = normalized_gradient[i, j]
+                    Normalized_N[i, j] = normalized_gradient[i, j]
                 else:
                     N[i, j] = 0.0
-                    Normalized_N[i,j] = 0.0
+                    Normalized_N[i, j] = 0.0
 
             # Test if angle is in sector 3
             elif (112.5 <= angle[i, j] < 157.7) or (292.5 <= angle[i, j] < 337.5):
@@ -165,12 +167,12 @@ def NMS(magnitude, angle, normalized_gradient):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j - 1], magnitude[i + 1, j + 1]):
                     N[i, j] = magnitude[i, j]
-                    Normalized_N[i,j] = normalized_gradient[i, j]
+                    Normalized_N[i, j] = normalized_gradient[i, j]
                 else:
                     N[i, j] = 0.0
-                    Normalized_N[i,j] = 0.0
+                    Normalized_N[i, j] = 0.0
 
-    cv2.imwrite("Normalized_NMS.png",Normalized_N)
+    cv2.imwrite("Normalized_NMS.png", Normalized_N)
     print("Saved Normalized Gradient Magnitude after NMS")
 
     return N, sector
@@ -211,6 +213,34 @@ def doubleThresholding(N, angle, t1, t2):
     return E
 
 
+def trackChanged(x):
+    pass
+
+
+def select(gradient, angle):
+    cv2.namedWindow("Threshold", cv2.WINDOW_AUTOSIZE)
+    cv2.createTrackbar("T1", "Threshold", 0, 127, trackChanged)
+
+    while True:
+        t1 = cv2.getTrackbarPos("T1", "Threshold")
+        t2 = 2 * t1
+        number = np.zeros((200, 500))
+        font = cv2.FONT_HERSHEY_COMPLEX
+        color = (255, 255, 255)
+        cv2.putText(number, text="T1: " + str(t1), org=(100, 100), fontFace=font, fontScale=1, color=color, thickness=1)
+        cv2.putText(number, text="T2: " + str(int(t1) * 2), org=(300, 100), fontFace=font, fontScale=1, color=color,
+                    thickness=1)
+
+        edge_map = doubleThresholding(gradient, angle, t1, t2)
+        cv2.imshow("Edge_Map", edge_map)
+        cv2.imshow("Threshold", number)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+    return t1, t2
+
+
 if __name__ == '__main__':
     fname = 'Zebra-crossing-1.bmp'
 
@@ -218,9 +248,9 @@ if __name__ == '__main__':
     im = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
 
     # Create a Directory to store the results.
-    if not os.path.exists("Output_"+fname):
-        os.mkdir("Output_"+fname)
-    os.chdir("Output_"+fname)
+    if not os.path.exists("Output_" + fname):
+        os.mkdir("Output_" + fname)
+    os.chdir("Output_" + fname)
 
     print("Performing Gaussian Smoothing on {}".format(fname))
     smooth_image = gaussian(im)
@@ -233,14 +263,16 @@ if __name__ == '__main__':
     gradient, angle, normalized_gradient = gradient_calc(smooth_image)
     print("Gradient Calculation completed\n")
 
-
     print("Performing Non-Maximum Suppression on {}".format(fname))
     NMS_gradient, sector = NMS(gradient, angle, normalized_gradient)
     print("Non-Maximum Suppression completed\n")
 
+    print("Trying to select Thresholds")
+    t1, t2 = select(gradient, angle)
+    print("Selected Thresholds. T1:{}\tT2:{}\n".format(t1, t2))
 
     print("Performing Double Thresholding on {}".format(fname))
-    Edge_map = doubleThresholding(gradient, angle, t1=100, t2=150)
+    Edge_map = doubleThresholding(gradient, angle, t1=t1, t2=t2)
     print("Double Thresholding completed")
 
     cv2.imwrite('EdgeMap_{}'.format(fname), Edge_map)
