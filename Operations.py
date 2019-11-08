@@ -94,12 +94,15 @@ def gradient_calc(im):
             else:
                 gra_angle[i, j] = np.degrees(np.arctan(G_y[i, j] / G_x[i, j]))
 
+    # Save the Normalized Gradient in X direction
     cv2.imwrite("Normalized_G_x.bmp", Normalized_G_x)
     print("Saved Normalized G_x")
 
+    # Save the Normalized Gradient in Y direction
     cv2.imwrite("Normalized_G_y.bmp", Normalized_G_y)
     print("Saved Normalized G_y")
 
+    # Save the Normalized Gradient Magnitude
     cv2.imwrite("Normalized_Gra_mag.bmp", Normalized_Gra_mag)
     print("Saved Normalized Gradient Magnitude")
 
@@ -172,6 +175,7 @@ def NMS(magnitude, angle, normalized_gradient):
                     N[i, j] = 0.0
                     Normalized_N[i, j] = 0.0
 
+    # Save the Normalized NMS gradients.
     cv2.imwrite("Normalized_NMS.png", Normalized_N)
     print("Saved Normalized Gradient Magnitude after NMS")
 
@@ -218,30 +222,46 @@ def trackChanged(x):
 
 
 def select(gradient, angle):
+    # Create a Window for holding Trackbar
     cv2.namedWindow("Threshold", cv2.WINDOW_AUTOSIZE)
+
+    # Create a Trackbar having min value = 0 and max value = 127
     cv2.createTrackbar("T1", "Threshold", 0, 127, trackChanged)
 
     while True:
+
+        # Get t1 corresponding to the current location of trackbar
         t1 = cv2.getTrackbarPos("T1", "Threshold")
         t2 = 2 * t1
+
+        # Initialize background for displaying current t1 and t2 and text features
         number = np.zeros((200, 500))
         font = cv2.FONT_HERSHEY_COMPLEX
         color = (255, 255, 255)
+
+        # Display values of t1 and t2 on background
         cv2.putText(number, text="T1: " + str(t1), org=(100, 100), fontFace=font, fontScale=1, color=color, thickness=1)
         cv2.putText(number, text="T2: " + str(int(t1) * 2), org=(300, 100), fontFace=font, fontScale=1, color=color,
                     thickness=1)
 
+        # Calculate the edge map using current t1 and t2
         edge_map = doubleThresholding(gradient, angle, t1, t2)
+
+        # Display the edge map and the threshold window
         cv2.imshow("Edge_Map", edge_map)
         cv2.imshow("Threshold", number)
 
+        # When satisfied with result, press key='q' to finalize t1 and t2
         if cv2.waitKey(1) == ord('q'):
             break
 
+    # Return selected t1 and t2
     return t1, t2
 
 
 if __name__ == '__main__':
+
+    # Specify the filename of the Input Image
     fname = 'Zebra-crossing-1.bmp'
 
     # Read the image in GRAYSCALE mode
@@ -269,11 +289,11 @@ if __name__ == '__main__':
 
     print("Trying to select Thresholds")
     t1, t2 = select(gradient, angle)
-    print("Selected Thresholds. T1:{}\tT2:{}\n".format(t1, t2))
+    print("Selected Thresholds-> T1:{}\tT2:{}\n".format(t1, t2))
 
     print("Performing Double Thresholding on {}".format(fname))
     Edge_map = doubleThresholding(gradient, angle, t1=t1, t2=t2)
     print("Double Thresholding completed")
 
     cv2.imwrite('EdgeMap_{}'.format(fname), Edge_map)
-    print("Saving EdgeMap")
+    print("Saved EdgeMap")
