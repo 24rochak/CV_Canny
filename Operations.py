@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import os
 
 def gaussian(im):
     '''
@@ -27,19 +27,12 @@ def gaussian(im):
     # Matrix for holding the smoothed image
     smooth_image = np.zeros(im.shape)
 
-    # Perform the convolution operation on the padded Image
-    for i in range(h):
-        for j in range(w):
-            # Multiply the mask matrix with 7*7 matrix and sum the output
-            # Divide by output by 140 for normalization
-            smooth_image[i, j] = np.sum(mask * im_padded[i:i + 7, j:j + 7]) // 140
-
     # Perform the convolution operation on the Non-Padded Image
-    '''for i in range(3,h-3):
-        for j in range(3,w-3):
+    for i in range(3, h - 3):
+        for j in range(3, w - 3):
             # Multiply the mask matrix with 7*7 matrix and sum the output 
             # Divide by output by 140 for normalization 
-            smooth_image[i, j] = np.sum(mask * im[i-3:i+4, j-3:j+4]) // 140'''
+            smooth_image[i, j] = np.sum(mask * im[i - 3:i + 4, j - 3:j + 4]) // 140
 
     return smooth_image
 
@@ -51,12 +44,12 @@ def gradient_calc(im):
     :param im: Input Image
     :return: (Gradient Magnitude, Gradient Angle)
     '''
-    # Sobel operator in x direction
+    # Sobel operator for calculating gradient in x direction
     gx = np.array([[-1, 0, 1],
                    [-2, 0, 2],
                    [-1, 0, 1]])
 
-    # Sobel operator in y direction
+    # Sobel operator for calculating gradient in y direction
     gy = np.array([[1, 2, 1],
                    [0, 0, 0],
                    [-1, -2, -1]])
@@ -66,10 +59,13 @@ def gradient_calc(im):
 
     # Define the matrix for storing the Horizontal and Vertical Gradient Values
     G_x = np.zeros(im.shape, dtype=np.float64)
+    Normalized_G_x = np.zeros(im.shape, dtype=np.float64)
     G_y = np.zeros(im.shape, dtype=np.float64)
+    Normalized_G_y = np.zeros(im.shape, dtype=np.float64)
 
     # Define the matrix for storing the gradient magnitude values
     gra_mag = np.zeros(im.shape, dtype=np.float64)
+    Normalized_Gra_mag = np.zeros(im.shape, dtype=np.float64)
 
     # Define the matrix for storing the gradient angle value
     gra_angle = np.zeros(im.shape, dtype=np.float64)
@@ -79,12 +75,16 @@ def gradient_calc(im):
 
             # Calculate the gradient in x direction
             G_x[i, j] = np.sum(gx * im[i - 1:i + 2, j - 1:j + 2])
+            Normalized_G_x[i, j] = G_x[i, j] / 4
 
             # Calculate the gradient in y direction
             G_y[i, j] = np.sum(gy * im[i - 1:i + 2, j - 1:j + 2])
+            Normalized_G_y[i, j] = G_y[i, j] / 4
 
             # Calculate the gradient magnitude
-            gra_mag[i, j] = np.sqrt(np.sum([G_x[i, j] ** 2, G_y[i, j] ** 2]))  # /np.sqrt(2)
+            gra_mag[i, j] = np.sqrt(np.sum([G_x[i, j] ** 2, G_y[i, j] ** 2]))
+            Normalized_Gra_mag[i, j] = np.sqrt(
+                np.sum([Normalized_G_x[i, j] ** 2, Normalized_G_y[i, j] ** 2])) / np.sqrt(2)
 
             # Calculate the gradient angle
             if G_x[i, j] == 0:
@@ -92,13 +92,19 @@ def gradient_calc(im):
             else:
                 gra_angle[i, j] = np.degrees(np.arctan(G_y[i, j] / G_x[i, j]))
 
-    # cv2.imwrite('G_x_4.bmp',G_x)
-    # cv2.imwrite('G_y_4.bmp',G_y)
-    # cv2.imwrite('G_mag.bmp',gra_mag)
-    return (gra_mag, gra_angle)
+    cv2.imwrite("Normalized_G_x.bmp", Normalized_G_x)
+    print("Saved Normalized G_x")
+
+    cv2.imwrite("Normalized_G_y.bmp", Normalized_G_y)
+    print("Saved Normalized G_y")
+
+    cv2.imwrite("Normalized_Gra_mag.bmp", Normalized_Gra_mag)
+    print("Saved Normalized Gradient Magnitude")
+
+    return (gra_mag, gra_angle, Normalized_Gra_mag)
 
 
-def NMS(magnitude, angle):
+def NMS(magnitude, angle, normalized_gradient):
     '''
     Performs Non-Maximum Suppression on given Magnitude matrix
     using angle matrix
@@ -115,6 +121,7 @@ def NMS(magnitude, angle):
 
     # Initialize the output matrix
     N = np.zeros((h, w), dtype=np.float64)
+    Normalized_N = np.zeros((h, w), dtype=np.float64)
 
     for i in range(1, h - 1):
         for j in range(1, w - 1):
@@ -125,8 +132,10 @@ def NMS(magnitude, angle):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i, j - 1], magnitude[i, j + 1]):
                     N[i, j] = magnitude[i, j]
+                    Normalized_N[i,j] = normalized_gradient[i,j]
                 else:
                     N[i, j] = 0.0
+                    Normalized_N[i,j] = 0.0
 
             # Test if angle is in sector 1
             elif (22.5 <= angle[i, j] < 67.5) or (202.5 <= angle[i, j] < 247.5):
@@ -134,8 +143,10 @@ def NMS(magnitude, angle):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j + 1], magnitude[i + 1, j - 1]):
                     N[i, j] = magnitude[i, j]
+                    Normalized_N[i,j] = normalized_gradient[i, j]
                 else:
                     N[i, j] = 0.0
+                    Normalized_N[i,j] = 0.0
 
             # Test if angle is in sector 2
             elif (67.5 <= angle[i, j] < 112.5) or (247.5 <= angle[i, j] < 292.5):
@@ -143,8 +154,10 @@ def NMS(magnitude, angle):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j], magnitude[i + 1, j]):
                     N[i, j] = magnitude[i, j]
+                    Normalized_N[i,j] = normalized_gradient[i, j]
                 else:
                     N[i, j] = 0.0
+                    Normalized_N[i,j] = 0.0
 
             # Test if angle is in sector 3
             elif (112.5 <= angle[i, j] < 157.7) or (292.5 <= angle[i, j] < 337.5):
@@ -152,8 +165,13 @@ def NMS(magnitude, angle):
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j - 1], magnitude[i + 1, j + 1]):
                     N[i, j] = magnitude[i, j]
+                    Normalized_N[i,j] = normalized_gradient[i, j]
                 else:
                     N[i, j] = 0.0
+                    Normalized_N[i,j] = 0.0
+
+    cv2.imwrite("Normalized_NMS.png",Normalized_N)
+    print("Saved Normalized Gradient Magnitude after NMS")
 
     return N, sector
 
@@ -199,30 +217,31 @@ if __name__ == '__main__':
     # Read the image in GRAYSCALE mode
     im = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
 
+    # Create a Directory to store the results.
+    if not os.path.exists("Output_"+fname):
+        os.mkdir("Output_"+fname)
+    os.chdir("Output_"+fname)
+
     print("Performing Gaussian Smoothing on {}".format(fname))
     smooth_image = gaussian(im)
     print("Gaussian Smoothing completed")
 
-    print("Saving Smoothed Image")
     cv2.imwrite('Smooth_{}'.format(fname), smooth_image)
+    print("Saved Smoothed Image\n")
 
     print("Performing Gradient Calculation on {}".format(fname))
-    gradient, angle = gradient_calc(smooth_image)
-    print("Gradient Calculation completed")
+    gradient, angle, normalized_gradient = gradient_calc(smooth_image)
+    print("Gradient Calculation completed\n")
 
-    print("Saving Gradient Image")
-    cv2.imwrite('Gradient_{}'.format(fname), gradient)
 
     print("Performing Non-Maximum Suppression on {}".format(fname))
-    NMS_gradient, sector = NMS(gradient, angle)
-    print("Non-Maximum Suppression completed")
+    NMS_gradient, sector = NMS(gradient, angle, normalized_gradient)
+    print("Non-Maximum Suppression completed\n")
 
-    print("Saving NMS Image")
-    cv2.imwrite('NMS_{}'.format(fname), NMS_gradient)
 
     print("Performing Double Thresholding on {}".format(fname))
     Edge_map = doubleThresholding(gradient, angle, t1=100, t2=150)
     print("Double Thresholding completed")
 
+    cv2.imwrite('EdgeMap_{}'.format(fname), Edge_map)
     print("Saving EdgeMap")
-    cv2.imwrite('EdgeMap_{}'.format(fname),Edge_map)
