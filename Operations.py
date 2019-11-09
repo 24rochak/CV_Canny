@@ -221,7 +221,14 @@ def trackChanged(x):
     pass
 
 
-def select(gradient, angle):
+def select_threshold(gradient, angle):
+    '''
+    Utility to dynamically select the Threshold values
+    that are best for the given input image.
+    :param gradient: NMS Gradient magnitudes.
+    :param angle: Gradient Angles.
+    :return: Thresholds t1 and t2
+    '''
     # Create a Window for holding Trackbar
     cv2.namedWindow("Threshold", cv2.WINDOW_AUTOSIZE)
 
@@ -256,7 +263,7 @@ def select(gradient, angle):
             break
 
     # Return selected t1 and t2
-    return t1, t2
+    return (t1, t2)
 
 
 if __name__ == '__main__':
@@ -287,8 +294,8 @@ if __name__ == '__main__':
     NMS_gradient, sector = NMS(gradient, angle, normalized_gradient)
     print("Non-Maximum Suppression completed\n")
 
-    print("Trying to select Thresholds")
-    t1, t2 = select(gradient, angle)
+    print("Please select the Thresholds")
+    t1, t2 = select_threshold(gradient, angle)
     print("Selected Thresholds-> T1:{}\tT2:{}\n".format(t1, t2))
 
     print("Performing Double Thresholding on {}".format(fname))
