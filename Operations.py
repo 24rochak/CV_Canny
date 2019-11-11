@@ -86,7 +86,7 @@ def gradient_calc(im):
 
             # Calculate the gradient angle
             if G_x[i, j] == 0:
-                Gradient_angle[i, j] = 0.0
+                Gradient_angle[i, j] = 90
             else:
                 Gradient_angle[i, j] = np.degrees(np.arctan(G_y[i, j] / G_x[i, j])) + 180
 
@@ -169,7 +169,7 @@ def NMS(magnitude, angle, normalized_magnitude):
                     Normalized_N[i, j] = 0.0
 
             # Test if angle is in sector 3
-            elif (112.5 <= angle[i, j] < 157.5) or (292.5 <= angle[i, j] < 337.5):
+            elif (112.5 <= angle[i, j] < 157.7) or (292.5 <= angle[i, j] < 337.5):
                 sector[i, j] = 3
                 # Check if the magnitude value is maximum amongst corresponding neighbours
                 if magnitude[i, j] > max(magnitude[i - 1, j - 1], magnitude[i + 1, j + 1]):
@@ -186,7 +186,7 @@ def NMS(magnitude, angle, normalized_magnitude):
     cv2.imwrite("NMS.png", N)
     print("Saved Gradient Magnitude after NMS")
 
-    return N, sector
+    return N, sector, Normalized_N
 
 
 def doubleThresholding(N, angle, t1, t2):
@@ -276,7 +276,7 @@ def select_threshold(gradient, angle):
 if __name__ == '__main__':
 
     # Specify the filename of the Input Image
-    fname = 'Zebra-crossing-1.bmp'
+    fname = 'Houses-225.bmp'
 
     # Read the image in GRAYSCALE mode
     im = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
@@ -289,7 +289,6 @@ if __name__ == '__main__':
     print("Performing Gaussian Smoothing on {}".format(fname))
     smooth_image = gaussian(im)
     print("Gaussian Smoothing completed")
-    print("SHape",smooth_image.shape)
 
     cv2.imwrite('Smooth_{}'.format(fname), smooth_image)
     print("Saved Smoothed Image\n")
@@ -299,16 +298,18 @@ if __name__ == '__main__':
     print("Gradient Calculation completed\n")
 
     print("Performing Non-Maximum Suppression on {}".format(fname))
-    NMS_gradient, sector = NMS(gradient, angle, normalized_gradient)
+    NMS_gradient, sector, Normalized_NMS_gradient = NMS(gradient, angle, normalized_gradient)
     print("Non-Maximum Suppression completed\n")
 
     print("Please select the Thresholds")
     print("Move the slider around to select the threshold values that are best for the current Image")
-    t1, t2 = select_threshold(NMS_gradient, angle)
+    print("Press key 'q' when the edge map is acceptable")
+    print("DO NOT PRESS CLOSE BUTTON {X} TO CLOSE THE WINDOW")
+    t1, t2 = select_threshold(Normalized_NMS_gradient, angle)
     print("Selected Thresholds-> T1:{}\tT2:{}\n".format(t1, t2))
 
     print("Performing Double Thresholding on {}".format(fname))
-    Edge_map = doubleThresholding(NMS_gradient, angle, t1=t1, t2=t2)
+    Edge_map = doubleThresholding(Normalized_NMS_gradient, angle, t1=t1, t2=t2)
     print("Double Thresholding completed")
 
     cv2.imwrite('EdgeMap_T1_{}_T2_{}_{}'.format(t1, t2, fname), Edge_map)
